@@ -1,0 +1,74 @@
+extern crate core;
+
+use eframe::egui;
+use std::error::Error;
+// use std::io::set_output_capture;
+use rss::{Channel, Item};
+use futures::executor::block_on;
+
+#[tokio::main]
+async fn main() {
+    let native_options = eframe::NativeOptions::default();
+    eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+}
+
+
+#[derive(Default)]
+struct MyEguiApp {
+    items: Episodes,
+}
+
+impl MyEguiApp {
+    async fn example_feed(mut self) {
+        let content = reqwest::get("https://linuxlads.com/feed_mp3.rss")
+            .await.unwrap()
+            .bytes()
+            .await.unwrap();
+        let channel = Channel::read_from(&content[..]).unwrap();
+        let items = channel.items;
+        for it in items {
+            let ep = Episode {
+                title: it.title.unwrap(),
+                desc: it.description.unwrap(),
+                url: it.link.unwrap()
+            };
+            self.items.items.push(ep);
+        }
+    }
+
+}
+
+impl MyEguiApp {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+        // Restore app state using cc.storage (requires the "persistence" feature).
+        // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+        // for e.g. egui::PaintCallback.
+        Self::default()
+    }
+}
+
+impl eframe::App for MyEguiApp {
+   fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+       egui::CentralPanel::default().show(ctx, |ui| {
+           ui.heading("Hello World!");
+           self.example_feed();
+           for it in self.items.items {
+               ui.label(it.title);
+           }
+
+
+       });
+   }
+}
+
+#[derive(Default)]
+struct Episodes {
+    items: Vec<Episode>,
+}
+
+struct Episode {
+    title: String,
+    url: String,
+    desc: String
+}
